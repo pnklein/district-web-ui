@@ -1,0 +1,36 @@
+<!DOCTYPE html5>
+<html>
+<head>
+	<title>Main</title>
+	<link rel='stylesheet' href='./styles.css'>
+	<link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+	<script src='./index.js'></script>
+	<script src="https://openlayers.org/en/v4.6.5/build/ol.js"></script>
+</head>
+<body>
+	<div id='interface' class='interface'>
+		<div id='loading-gif'>
+		</div>
+		<div id='search-control' class='controls'>
+			<input type='search' id='state-search' class='controls' placeholder='Search states'>
+			<div id='state-list' class='state-list'>
+				<p class="unclickable">* Indicates a state with one or zero districts</p>
+			</div>
+		</div>
+		<div id='map-container'>
+			<div id='redistrict-control'>
+				<form method='POST' action='/redistrict' id='redistrictForm'>
+					<input type='hidden' name='state' id='state-input' value='RI'>
+					<input type='checkbox' name='detailOption' id='detail-option' checked='true'> <label> Draw with census block boundary detail </label><br>
+					<input type='checkbox' name='boundOption' id='bound-option' checked='true'> <label> Draw with state boundary outline</label>
+				</form>
+			</div>
+			<div id='map' class='map'>
+			</div>
+		</div>
+
+	</div>
+
+</body>
+</html>
