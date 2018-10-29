@@ -1,6 +1,7 @@
 $(document).ready(function(){
 
 			var map, districtLayers, boundlayer;
+			let districtColors = {};
 			// create a zoom variable, change it when new state is selected, do not change
 			// when new toggle is selected
 
@@ -66,7 +67,7 @@ $(document).ready(function(){
 
 				$.get('/state/'+state+'/'+detail_option,  function(res){
 					
-					drawDistricts(res); // redraws districts, which causes refresh
+					drawDistricts(state, res); // redraws districts, which causes refresh
 					// add parameter that is toggle, T or F
 					hideLoadAnimation();
 
@@ -116,12 +117,12 @@ $(document).ready(function(){
 			function panToState(state){
 				var detail_option = $('#detail-option').prop('checked');
 				$.get('/state/'+state+'/'+detail_option, function(data, status){
-					drawDistricts(data);
+					drawDistricts(state, data);
 				})
 			}
 
 			// Redraws district boundaries at center of state
-			function drawDistricts(data){
+			function drawDistricts(state, data){
 				var json = JSON.parse(data);
 				var stateData = json.geometry;
 				var districts = json.polygons;
@@ -133,7 +134,7 @@ $(document).ready(function(){
 				for (var i in districtLayers){ // global var
 					map.removeLayer(districtLayers[i]);
 				}
-				var newlayers = formLayers(stateData.type, stateData.coordinates, stateData.center, districts, blocks);
+				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks);
 
 				for (var j in newlayers){
 					map.addLayer(newlayers[j]);
@@ -156,13 +157,31 @@ $(document).ready(function(){
 
 					console.log(districts);
 
-					createmap(stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks);
+					createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks);
 				})
 			}
 
+			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
+			function createmap(state, type, coords, center, zoom, districts, blocks) {
+				var layers = formLayers(state, type, coords, center, districts, blocks);
+
+				var osm = new ol.layer.Tile({
+					source: new ol.source.OSM(),
+					opacity: 0.75
+				})
+
+				map = new ol.Map({
+					target: 'map',
+		        	layers: [osm].concat(layers),
+		        	view: new ol.View({
+		        		center: ol.proj.fromLonLat(center),
+		          		zoom: zoom
+		        	})
+		      	});
+			}
 
 			// Forms the layers and their geometries but doesn't draw layers. 'blocks' is census block boundaries
-			function formLayers(type, coords, center, districts, blocks) {
+			function formLayers(state, type, coords, center, districts, blocks) {
 				var bound_geometry;
 				var boundfeature = new ol.Feature({});
 
@@ -177,7 +196,7 @@ $(document).ready(function(){
 				bound_geometry.transform('EPSG:4326', 'EPSG:3857');
 				boundfeature.setGeometry(bound_geometry);
 
-				districtLayers = drawDistrictLayers(districts, bound_geometry, blocks);
+				districtLayers = drawDistrictLayers(state, districts, bound_geometry, blocks);
 
 				boundlayer = new ol.layer.Vector({
 				    source: new ol.source.Vector({
@@ -198,36 +217,26 @@ $(document).ready(function(){
 				return (districtLayers.concat([boundlayer]));
 			}
 
-			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
-			function createmap(type, coords, center, zoom, districts, blocks) {
-				var layers = formLayers(type, coords, center, districts, blocks);
-
-				var osm = new ol.layer.Tile({
-					source: new ol.source.OSM(),
-					opacity: 0.75
-				})
-
-				map = new ol.Map({
-					target: 'map',
-		        	layers: [osm].concat(layers),
-		        	view: new ol.View({
-		        		center: ol.proj.fromLonLat(center),
-		          		zoom: zoom
-		        	})
-		      	});
-			}
-
 			// Forms vector drawings of district layers, doesn't add to map yet
 			// change coords to be district
-			function drawDistrictLayers(coords, geometry, blocks){
+			function drawDistrictLayers(state, coords, geometry, blocks){
 				var layers = [];
 				var colors = [];
-				// look for if RI already has colors loaded in
-				// if not, create them in a loop here
+
+				// check if state already has colors loaded in
+				// if not, generate random colors
+				if (state in districtColors) {
+					colors = districtColors[state];
+				} else {
+					for (var l in coords) {
+						color = getRandomColor().toString();
+						colors.push(color)
+					}
+					districtColors[state] = colors;
+				}
 
 				// district vectors
-				for (var i in coords){
-
+				for (var i in coords) {
 					var geom;
 					if (dimension(coords[i]) == 2) {
 						var geom = new ol.geom.Polygon([coords[i]]);
@@ -238,9 +247,6 @@ $(document).ready(function(){
 
 					geom.transform('EPSG:4326', 'EPSG:3857');
 
-					color = getRandomColor().toString();
-					colors.push(color);
-
 					var vector = new ol.layer.Vector({
 				    	source: new ol.source.Vector({
 				        	features: [new ol.Feature({
@@ -250,7 +256,7 @@ $(document).ready(function(){
 				    	style: new ol.style.Style({
 
 				    		fill: new ol.style.Fill({
-				    			color: color
+				    			color: colors[i]
 				    		})
 				    	}),
 				    	opacity: 0.5
@@ -262,7 +268,6 @@ $(document).ready(function(){
 				}
 
 				// census block vectors to clip district vectors
-
 				for (var j in Object.keys(blocks)){
 					console.log(blocks[j]);
 
