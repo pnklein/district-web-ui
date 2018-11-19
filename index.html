@@ -2,6 +2,7 @@
 <html>
 <head>
 	<title>Main</title>
+	<link rel="shortcut icon" href="#" />
 	<link rel='stylesheet' href='./styles.css'>
 	<link rel="stylesheet" href="https://openlayers.org/en/v4.6.5/css/ol.css" type="text/css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
@@ -13,9 +14,11 @@
 		<div id='loading-gif'>
 		</div>
 		<div id='search-control' class='controls'>
-			<input type='search' id='state-search' class='controls' placeholder='Search states'>
+			<input type='text' id='state-search' placeholder='Search States'>
 			<div id='state-list' class='state-list'>
-				<p class="unclickable">* Indicates a state with one or zero districts</p>
+				<p class="key">
+					* Indicates a state with 1 or 0 districts
+				</p>
 			</div>
 		</div>
 		<div id='map-container'>
@@ -29,8 +32,6 @@
 			<div id='map' class='map'>
 			</div>
 		</div>
-
 	</div>
-
 </body>
 </html>

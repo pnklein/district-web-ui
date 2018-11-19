@@ -1,7 +1,7 @@
 /////   SET UP EXPRESS   //////
 var express = require('express');
 var app = express();
-var http = require('http');
+var https = require('https');
 
 // ASYNC
 // var request = require('request');
@@ -60,7 +60,7 @@ var stateCodes = {
 			    		"single_district": true
 			    	},
 			    "DC": {
-			    		"name": "District Of Columbia", 
+			    		"name": "District of Columbia", 
 			    		"single_district": true
 			    	},
 			    "FL": {
