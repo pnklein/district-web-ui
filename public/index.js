@@ -62,12 +62,13 @@ $(document).ready(function(){
 				showLoadAnimation();
 
 				var detail_option = $('#detail-option').prop('checked');
+				var border_option = $('#bound-option').prop('checked');
 				console.log(detail_option);
 				var state = $('#state-input').val();
 
 				$.get('/state/'+state+'/'+detail_option,  function(res){
 					
-					drawDistricts(state, res); // redraws districts, which causes refresh
+					drawDistricts(state, res, border_option); // redraws districts, which causes refresh
 					// add parameter that is toggle, T or F
 					hideLoadAnimation();
 
@@ -117,12 +118,13 @@ $(document).ready(function(){
 			function panToState(state){
 				var detail_option = $('#detail-option').prop('checked');
 				$.get('/state/'+state+'/'+detail_option, function(data, status){
-					drawDistricts(state, data);
+					var border_option = $('#bound-option').prop('checked');
+					drawDistricts(state, data, border_option);
 				})
 			}
 
 			// Redraws district boundaries at center of state
-			function drawDistricts(state, data){
+			function drawDistricts(state, data, border_option){
 				var json = JSON.parse(data);
 				var stateData = json.geometry;
 				var districts = json.polygons;
@@ -134,7 +136,7 @@ $(document).ready(function(){
 				for (var i in districtLayers){ // global var
 					map.removeLayer(districtLayers[i]);
 				}
-				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks);
+				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks, border_option);
 
 				for (var j in newlayers){
 					map.addLayer(newlayers[j]);
@@ -157,13 +159,13 @@ $(document).ready(function(){
 
 					console.log(districts);
 
-					createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks);
+					createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks, true);
 				})
 			}
 
 			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
-			function createmap(state, type, coords, center, zoom, districts, blocks) {
-				var layers = formLayers(state, type, coords, center, districts, blocks);
+			function createmap(state, type, coords, center, zoom, districts, blocks, border_option) {
+				var layers = formLayers(state, type, coords, center, districts, blocks, border_option);
 
 				var osm = new ol.layer.Tile({
 					source: new ol.source.OSM(),
@@ -181,7 +183,7 @@ $(document).ready(function(){
 			}
 
 			// Forms the layers and their geometries but doesn't draw layers. 'blocks' is census block boundaries
-			function formLayers(state, type, coords, center, districts, blocks) {
+			function formLayers(state, type, coords, center, districts, blocks, border_option) {
 				var bound_geometry;
 				var boundfeature = new ol.Feature({});
 
@@ -198,15 +200,25 @@ $(document).ready(function(){
 
 				districtLayers = drawDistrictLayers(state, districts, bound_geometry, blocks);
 
+				// reset border option
+				if (border_option) {
+					stroke_style = new ol.style.Stroke({
+						width: 3,
+						color: 'black'
+				    })
+				} else {
+					stroke_style = new ol.style.Stroke({
+						width: 0,
+						color: [0,0,0,0]
+				    })
+				}
+
 				boundlayer = new ol.layer.Vector({
 				    source: new ol.source.Vector({
 				        features: [boundfeature]
 				    }),
 				    style: new ol.style.Style({
-				    	stroke: new ol.style.Stroke({
-				    		width: 3,
-				    		color: 'black'
-				    	}),
+						stroke: stroke_style,
 				    	fill: new ol.style.Fill({
 				    		color: 'white'
 				    	})
