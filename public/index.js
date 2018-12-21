@@ -1,6 +1,7 @@
 $(document).ready(function(){
 
 			var map, districtLayers, boundlayer, selectedStateId;
+			let opacity = 0.5
 			let districtColors = {};
 
 			setupmap('RI');// default state
@@ -54,7 +55,20 @@ $(document).ready(function(){
 
 			$('#detail-option').on('change', toggleDetail);
 			$('#bound-option').on('change', toggleBorder);
+			$('#slider').on('input', changeOpacity);
 
+			function changeOpacity(event) {
+				// convert opacity to decimal value
+				opacity = $('#slider').val() / 100 + .10;
+				console.log(opacity);
+
+				var state = $('#state-input').val();
+				var detail_option = $('#detail-option').prop('checked');
+				$.get('/state/'+state+'/'+detail_option,  async function(res){
+					await drawDistricts(state, res, true);
+					hideLoadAnimation();
+				});
+			}
 
 			// adds or removes census block detailing on boundaries
 			function toggleDetail(event){
@@ -119,9 +133,9 @@ $(document).ready(function(){
 			///////////////
 
 			// Pans to clicked state
-			function panToState(state){
+			async function panToState(state){
 				var detail_option = $('#detail-option').prop('checked');
-				$.get('/state/'+state+'/'+detail_option, async function(data, status){
+				await $.get('/state/'+state+'/'+detail_option, async function(data, status){
 					await drawDistricts(state, data, false);
 				})
 			}
@@ -263,7 +277,7 @@ $(document).ready(function(){
 				    			color: colors[i]
 				    		})
 				    	}),
-				    	opacity: 0.8
+				    	opacity: opacity
 					});
 
 					clipPolygon(vector, geometry);
@@ -304,7 +318,7 @@ $(document).ready(function(){
 				   			color: colors[j]
 				   		})
 				   	}),
-					   	opacity: 0.8
+					   	opacity: opacity
 					});
 
 					clipVector.on('precompose', function(event){
