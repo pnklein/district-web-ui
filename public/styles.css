@@ -163,3 +163,16 @@ h3, label {
 p.selected {
 	background-color: #ededed;
 }
+
+.slider-container {
+	padding-bottom: 10px;
+	width: 100%;
+}
+
+#slider {
+	width: 99%;
+}
+
+.slider-info {
+	font-size: 14px;
+}
