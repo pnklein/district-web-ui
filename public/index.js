@@ -60,12 +60,12 @@ $(document).ready(function(){
 			function changeOpacity(event) {
 				// convert opacity to decimal value
 				opacity = $('#slider').val() / 100 + .10;
-				console.log(opacity);
-
 				var state = $('#state-input').val();
 				var detail_option = $('#detail-option').prop('checked');
+				var border_option = $('#bound-option').prop('checked');
+
 				$.get('/state/'+state+'/'+detail_option,  async function(res){
-					await drawDistricts(state, res, true);
+					await drawDistricts(state, res, true, border_option);
 					hideLoadAnimation();
 				});
 			}
@@ -73,15 +73,12 @@ $(document).ready(function(){
 			// adds or removes census block detailing on boundaries
 			function toggleDetail(event){
 				showLoadAnimation();
-
 				var detail_option = $('#detail-option').prop('checked');
-				console.log(detail_option);
+				var border_option = $('#bound-option').prop('checked');
 				var state = $('#state-input').val();
 
 				$.get('/state/'+state+'/'+detail_option,  function(res){
-					
-					drawDistricts(state, res, true); // redraws districts, which causes refresh
-					// add parameter that is toggle, T or F
+					drawDistricts(state, res, true, border_option); // redraws districts, which causes refresh
 					hideLoadAnimation();
 
 				});
@@ -136,12 +133,13 @@ $(document).ready(function(){
 			async function panToState(state){
 				var detail_option = $('#detail-option').prop('checked');
 				await $.get('/state/'+state+'/'+detail_option, async function(data, status){
-					await drawDistricts(state, data, false);
+					var border_option = $('#bound-option').prop('checked');
+					await drawDistricts(state, data, false, border_option);
 				})
 			}
 
 			// Redraws district boundaries at center of state
-			async function drawDistricts(state, data, toggle_detail){
+			async function drawDistricts(state, data, toggle_detail, border_option){
 				var json = JSON.parse(data);
 				var stateData = json.geometry;
 				var districts = json.polygons;
@@ -154,8 +152,8 @@ $(document).ready(function(){
 				for (var i in districtLayers){ // global var
 					map.removeLayer(districtLayers[i]);
 				}
-				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks, colors);
 
+				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks, colors, border_option);
 				for (var j in newlayers){
 					map.addLayer(newlayers[j]);
 					console.log(map.getLayers());
@@ -174,13 +172,13 @@ $(document).ready(function(){
 					var blocks = json.blocks;
 					var colors = json.colors;
 
-					await createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks, colors);
+					await createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks, colors, true);
 				})
 			}
 
 			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
-			async function createmap(state, type, coords, center, zoom, districts, blocks, colors) {
-				var layers = formLayers(state, type, coords, center, districts, blocks, colors);
+			async function createmap(state, type, coords, center, zoom, districts, blocks, colors, border_option) {
+				var layers = formLayers(state, type, coords, center, districts, blocks, colors, border_option);
 
 				var osm = new ol.layer.Tile({
 					source: new ol.source.OSM(),
@@ -198,7 +196,7 @@ $(document).ready(function(){
 			}
 
 			// Forms the layers and their geometries but doesn't draw layers. 'blocks' is census block boundaries
-			function formLayers(state, type, coords, center, districts, blocks, colors) {
+			function formLayers(state, type, coords, center, districts, blocks, colors, border_option) {
 				var bound_geometry;
 				var boundfeature = new ol.Feature({});
 
@@ -215,15 +213,25 @@ $(document).ready(function(){
 
 				districtLayers = drawDistrictLayers(state, districts, bound_geometry, blocks, colors);
 
+				// reset border option
+				if (border_option) {
+					stroke_style = new ol.style.Stroke({
+						width: 3,
+						color: 'black'
+				    })
+				} else {
+					stroke_style = new ol.style.Stroke({
+						width: 0,
+						color: [0,0,0,0]
+				    })
+				}
+
 				boundlayer = new ol.layer.Vector({
 				    source: new ol.source.Vector({
 				        features: [boundfeature]
 				    }),
 				    style: new ol.style.Style({
-				    	stroke: new ol.style.Stroke({
-				    		width: 3,
-				    		color: 'black'
-				    	}),
+						stroke: stroke_style,
 				    	fill: new ol.style.Fill({
 				    		color: 'white'
 				    	})
