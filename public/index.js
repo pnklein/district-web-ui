@@ -1,8 +1,7 @@
 $(document).ready(function(){
 
-			var map, districtLayers, boundlayer;
-			// create a zoom variable, change it when new state is selected, do not change
-			// when new toggle is selected
+			var map, districtLayers, boundlayer, selectedStateId;
+			let districtColors = {};
 
 			setupmap('RI');// default state
 
@@ -15,8 +14,10 @@ $(document).ready(function(){
 
 			// Dynamically loads the list of states
 			function makeStateList(states){
+				let stateId = 0;
 				for (var i in states){
 					var para = document.createElement("p");
+					$(para).attr('id', stateId);
 					// if state has only one district, indicate
 					if (states[i]['single_district'] == true) {
 						$(para).html(states[i]["name"] + "*");
@@ -25,6 +26,7 @@ $(document).ready(function(){
 					}
 					$(para).prop("code", i);
 					$('#state-list').append(para);
+					stateId++;
 				}
 			}
 
@@ -42,14 +44,12 @@ $(document).ready(function(){
 					else {
 						$(states[i]).css('display','block');
 					}
-
 				}
-
 			});
 
 
 			///////////////////////////
-			//FORM/EVENT HANDLERS ///////////
+			////FORM/EVENT HANDLERS////
 			///////////////////////////
 
 			$('#detail-option').on('change', toggleDetail);
@@ -66,7 +66,7 @@ $(document).ready(function(){
 
 				$.get('/state/'+state+'/'+detail_option,  function(res){
 					
-					drawDistricts(res); // redraws districts, which causes refresh
+					drawDistricts(state, res, true); // redraws districts, which causes refresh
 					// add parameter that is toggle, T or F
 					hideLoadAnimation();
 
@@ -101,12 +101,18 @@ $(document).ready(function(){
 			$(document).on('click', 'p', function(){
 				var code = $(this).prop("code");
 
+				// highlight state selected
+				if (selectedStateId) {
+					$('#' + selectedStateId).removeClass('selected');
+				}
+				$(this).addClass('selected');
+				selectedStateId = this.id
+
 				$('#state-input').val(code);
 				showLoadAnimation();
 				panToState(code);
 				hideLoadAnimation();
 			});
-
 
 			///////////////
 			//DRAWING MAP//
@@ -115,25 +121,26 @@ $(document).ready(function(){
 			// Pans to clicked state
 			function panToState(state){
 				var detail_option = $('#detail-option').prop('checked');
-				$.get('/state/'+state+'/'+detail_option, function(data, status){
-					drawDistricts(data);
+				$.get('/state/'+state+'/'+detail_option, async function(data, status){
+					await drawDistricts(state, data, false);
 				})
 			}
 
 			// Redraws district boundaries at center of state
-			function drawDistricts(data){
+			async function drawDistricts(state, data, toggle_detail){
 				var json = JSON.parse(data);
 				var stateData = json.geometry;
 				var districts = json.polygons;
 				var blocks = json.blocks;
 				var zoom = json.zoom;
+				var colors = json.colors;
 
 				map.getView().setCenter(ol.proj.fromLonLat(stateData.center));
 				map.removeLayer(boundlayer);
 				for (var i in districtLayers){ // global var
 					map.removeLayer(districtLayers[i]);
 				}
-				var newlayers = formLayers(stateData.type, stateData.coordinates, stateData.center, districts, blocks);
+				var newlayers = formLayers(state, stateData.type, stateData.coordinates, stateData.center, districts, blocks, colors);
 
 				for (var j in newlayers){
 					map.addLayer(newlayers[j]);
@@ -143,26 +150,41 @@ $(document).ready(function(){
 				console.log(status);
 			}
 
-			// Initial drawing of map
+			// Initial drawing of map with RI
 			function setupmap(state){
-				$.get('/state/'+state+'/true', function(data, status){
-
+				$.get('/state/'+state+'/true', async function(data, status){
 					var json = JSON.parse(data);
-
 					var stateData = json.geometry;
 					var districts = json.polygons;
 					var zoom = json.zoom;
 					var blocks = json.blocks;
+					var colors = json.colors;
 
-					console.log(districts);
-
-					createmap(stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks);
+					await createmap(state, stateData.type, stateData.coordinates, stateData.center, zoom, districts, blocks, colors);
 				})
 			}
 
+			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
+			async function createmap(state, type, coords, center, zoom, districts, blocks, colors) {
+				var layers = formLayers(state, type, coords, center, districts, blocks, colors);
+
+				var osm = new ol.layer.Tile({
+					source: new ol.source.OSM(),
+					opacity: 0.8
+				})
+
+				map = new ol.Map({
+					target: 'map',
+		        	layers: [osm].concat(layers),
+		        	view: new ol.View({
+		        		center: ol.proj.fromLonLat(center),
+		          		zoom: zoom
+		        	})
+		      	});
+			}
 
 			// Forms the layers and their geometries but doesn't draw layers. 'blocks' is census block boundaries
-			function formLayers(type, coords, center, districts, blocks) {
+			function formLayers(state, type, coords, center, districts, blocks, colors) {
 				var bound_geometry;
 				var boundfeature = new ol.Feature({});
 
@@ -177,7 +199,7 @@ $(document).ready(function(){
 				bound_geometry.transform('EPSG:4326', 'EPSG:3857');
 				boundfeature.setGeometry(bound_geometry);
 
-				districtLayers = drawDistrictLayers(districts, bound_geometry, blocks);
+				districtLayers = drawDistrictLayers(state, districts, bound_geometry, blocks, colors);
 
 				boundlayer = new ol.layer.Vector({
 				    source: new ol.source.Vector({
@@ -198,48 +220,36 @@ $(document).ready(function(){
 				return (districtLayers.concat([boundlayer]));
 			}
 
-			// Returns the ol map object... only on page reload. 'blocks' is polygons of census block boundaries
-			function createmap(type, coords, center, zoom, districts, blocks) {
-				var layers = formLayers(type, coords, center, districts, blocks);
-
-				var osm = new ol.layer.Tile({
-					source: new ol.source.OSM(),
-					opacity: 0.75
-				})
-
-				map = new ol.Map({
-					target: 'map',
-		        	layers: [osm].concat(layers),
-		        	view: new ol.View({
-		        		center: ol.proj.fromLonLat(center),
-		          		zoom: zoom
-		        	})
-		      	});
-			}
-
 			// Forms vector drawings of district layers, doesn't add to map yet
-			// change coords to be district
-			function drawDistrictLayers(coords, geometry, blocks){
+			function drawDistrictLayers(state, districts, geometry, blocks, backend_colors){
 				var layers = [];
 				var colors = [];
-				// look for if RI already has colors loaded in
-				// if not, create them in a loop here
+
+				// check if state already has colors loaded in; if not, generate them
+				if (state in districtColors) {
+					colors = districtColors[state];
+				} else if (backend_colors.length != 0) {
+					colors = backend_colors;
+					districtColors[state] = colors;
+				} else {
+					for (var l in districts) {
+						color = getRandomColor().toString();
+						colors.push(color);
+					}
+					districtColors[state] = colors;
+				}
 
 				// district vectors
-				for (var i in coords){
-
+				for (var i in districts) {
 					var geom;
-					if (dimension(coords[i]) == 2) {
-						var geom = new ol.geom.Polygon([coords[i]]);
+					if (dimension(districts[i]) == 2) {
+						var geom = new ol.geom.Polygon([districts[i]]);
 					}
 					else {
-						var geom = new ol.geom.MultiPolygon([coords[i]]);
+						var geom = new ol.geom.MultiPolygon([districts[i]]);
 					}
 
 					geom.transform('EPSG:4326', 'EPSG:3857');
-
-					color = getRandomColor().toString();
-					colors.push(color);
 
 					var vector = new ol.layer.Vector({
 				    	source: new ol.source.Vector({
@@ -250,10 +260,10 @@ $(document).ready(function(){
 				    	style: new ol.style.Style({
 
 				    		fill: new ol.style.Fill({
-				    			color: color
+				    			color: colors[i]
 				    		})
 				    	}),
-				    	opacity: 0.5
+				    	opacity: 0.8
 					});
 
 					clipPolygon(vector, geometry);
@@ -262,9 +272,7 @@ $(document).ready(function(){
 				}
 
 				// census block vectors to clip district vectors
-
 				for (var j in Object.keys(blocks)){
-					console.log(blocks[j]);
 
 					var blocks_geom = new ol.geom.MultiPolygon([blocks[j]]);
 					blocks_geom.transform('EPSG:4326', 'EPSG:3857');
@@ -296,7 +304,7 @@ $(document).ready(function(){
 				   			color: colors[j]
 				   		})
 				   	}),
-					   	opacity: 0.5
+					   	opacity: 0.8
 					});
 
 					clipVector.on('precompose', function(event){

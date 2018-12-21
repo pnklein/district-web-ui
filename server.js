@@ -1,16 +1,17 @@
 /////   SET UP EXPRESS   //////
 var express = require('express');
 var app = express();
-var http = require('http');
-
-// ASYNC
-// var request = require('request');
-var async = require('async');
-const fetch = require("node-fetch");
+var https = require('https');
 
 // For config files
 var fs = require('fs');
 var path = require('path');
+
+// ASYNC dependencies
+var async = require('async');
+const fetch = require("node-fetch");
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
 
 // For executing python script
 var spawnSync = require("child_process").spawnSync;
@@ -57,10 +58,6 @@ var stateCodes = {
 			    	},
 			    "DE": {
 			    		"name": "Delaware", 
-			    		"single_district": true
-			    	},
-			    "DC": {
-			    		"name": "District Of Columbia", 
 			    		"single_district": true
 			    	},
 			    "FL": {
@@ -248,17 +245,33 @@ app.get('/states', async function(req, res){
 
 // This is to get all data for drawing the map. Takes in a :name parameter (the state code) and a :detailopt (whether or not we should 
 // send along the census block detail)
-app.get('/state/:name/:detailopt', function(req, res){
-	console.log("TODO: changes to the git repo have caused this method to be obsolete.")
-	return
+app.get('/state/:name/:detailopt', async function(req, res){
 
 	var statejson = fs.readFileSync('../district-web-data/states.json'); // contains information about each state, including state boundary and census area. take a look in the file for more info
 
 	var state = JSON.parse(statejson).features.find(state => (state.properties.NAME == stateCodes[req.params.name]["name"]));
 
 	var	stateGeom = state.geometry; // get the geometry/coordinates corresponding to the state in question
-	var zoom = (11.5 - Math.log10(state.properties.CENSUSAREA)); // a cute little equation i experimentally came up with to calculate a reasonable zoom setting for open layers
+
+	if (req.params.name == 'AK') {
+		var zoom = (10 - Math.log10(state.properties.CENSUSAREA)); // a cute little equation i experimentally came up with to calculate a reasonable zoom setting for open layers
+	} else {
+		var zoom = (11.5 - Math.log10(state.properties.CENSUSAREA));
+	}
 	console.log(zoom);
+
+	// Read in colors for the state
+	var colors = [];
+	async function fetchColors() {
+		return await readFile('../district-web-data/web_data/graph_coloring/colors_'+req.params.name);
+	}
+
+	await fetchColors().then(data => {
+		colors = JSON.parse(data).colors;
+	}).catch(err => {
+		console.log('There does not already exist a file with the colors for the districting of this state');
+		console.log(err);
+	})
 
 	var detail_opt = req.params.detailopt;
 	console.log(detail_opt);
@@ -268,11 +281,11 @@ app.get('/state/:name/:detailopt', function(req, res){
 	fs.readFile('../district-web-data/web_data/district_polygons/polygons_'+req.params.name, 'utf8', function(err, data){
 
 		if (err){
-			console.log('There does not already exist a file with the polygons for this districting of this state');
+			console.log('There does not already exist a file with the polygons for the districting of this state');
 			console.log(err);
 
 			// pass in empty data so that server doesn't crash, will just show outline of state
-			var json = {"polygons":[], "geometry":stateGeom, "blocks":[], "zoom":zoom}
+			var json = {"polygons":[], "geometry":stateGeom, "blocks":[], "zoom":zoom, "colors":['#fafafa']}
 
 		}
 		else {
@@ -286,7 +299,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 			}
 			// string processing because arrays in python are different than arrays in js.
 			var polygons = JSON.parse(data.replace(/\(/g, '\[').replace(/\)/g, '\]'));
-			var json = {"polygons":polygons, "geometry":stateGeom, "blocks": census_blocks, "zoom":zoom};
+			var json = {"polygons":polygons, "geometry":stateGeom, "blocks": census_blocks, "zoom":zoom, "colors":colors};
 		}
 
 		// send it back to the functions that did a get request to this route in index.js

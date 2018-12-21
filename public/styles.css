@@ -1,6 +1,8 @@
 body, div {
 	padding: 0px;
 	margin: 0px;
+	overflow-y: hidden;
+	overflow-x: hidden;
 }
 
 #redistrictForm, #detailRedistrictForm {
@@ -20,7 +22,6 @@ input[type=number] {
 	font-size: 12px;
 	background-color: white;
 	margin: 0px 10px;
-
 }
 
 input[type=number]:focus {
@@ -30,30 +31,43 @@ input[type=number]:focus {
 	background-color: solid 2px rgba(0, 0, 255, 0.05);
 }
 
+input[type="search"] {
+	box-sizing: content-box;
+	outline: none;
+	margin: 0 auto;
+}
+
 #state-search {
 	padding: 10px;
-	margin-top: 5px;
-	background-color: rgba(0, 0, 255, 0.2);
+	background-color: white;
+	outline: none;
+	border-style: none;
+	margin-bottom: 10px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	border-radius: 1px;
 }
 
 #search-control {
-	height: 100%;
-	width: 200px;
+	width: 300px;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	align-items: stretch;
 	float: left;
-
+	padding: 10px;
+	background-color: #f3f3f3;
+	box-shadow: 5px 5px 5px rgba(18, 18, 18, 0.5);
 }
 
 #state-list {
 	height: 100%;
 	font-family: sans-serif;
-	font-size: 12px;
+	font-size: 13px;
 	overflow: scroll;
 	z-index: 1000;
 	background-color: rgba(255, 255, 255, 0.7);
+	border-radius: 2px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .unclickable {
@@ -121,11 +135,20 @@ input[type=number]:focus {
 p {
 	padding: 5px;
 	margin: 0px;
-	border: solid 0.3px grey;
+	vertical-align: baseline;
+	border-bottom: 1px solid #d8d8d8;
+	background-color: white;
+}
+
+.key {
+	font-style: italic;
+	font-weight: lighter;
+	color: gray;
+	pointer-events: none
 }
 
 p:hover {
-	background-color: rgba(0, 0, 255, 0.2);
+	background-color: #ededed;
 	cursor: pointer;
 }
 
@@ -138,5 +161,5 @@ h3, label {
 }
 
 p.selected {
-
+	background-color: #ededed;
 }
