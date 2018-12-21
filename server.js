@@ -3,14 +3,15 @@ var express = require('express');
 var app = express();
 var https = require('https');
 
-// ASYNC
-// var request = require('request');
-var async = require('async');
-const fetch = require("node-fetch");
-
 // For config files
 var fs = require('fs');
 var path = require('path');
+
+// ASYNC dependencies
+var async = require('async');
+const fetch = require("node-fetch");
+const util = require('util');
+const readFile = util.promisify(fs.readFile);
 
 // For executing python script
 var spawnSync = require("child_process").spawnSync;
@@ -244,8 +245,7 @@ app.get('/states', async function(req, res){
 
 // This is to get all data for drawing the map. Takes in a :name parameter (the state code) and a :detailopt (whether or not we should 
 // send along the census block detail)
-app.get('/state/:name/:detailopt', function(req, res){
-
+app.get('/state/:name/:detailopt', async function(req, res){
 	var statejson = fs.readFileSync('../district-web-data/states.json'); // contains information about each state, including state boundary and census area. take a look in the file for more info
 
 	var state = JSON.parse(statejson).features.find(state => (state.properties.NAME == stateCodes[req.params.name]["name"]));
@@ -259,16 +259,18 @@ app.get('/state/:name/:detailopt', function(req, res){
 	}
 	console.log(zoom);
 
-	// Read in colors for that state
+	// Read in colors for the state
 	var colors = [];
-	fs.readFile('../district-web-data/web_data/graph_coloring/colors_'+req.params.name, 'utf8', function(err, data){
-		if (err) {
-			console.log('There does not already exist a file with the colors for this districting of this state');
-			console.log(err);
-		} else {
-			colors = JSON.parse(data).colors;
-		}
-	});
+	async function fetchColors() {
+		return await readFile('../district-web-data/web_data/graph_coloring/colors_'+req.params.name);
+	}
+
+	await fetchColors().then(data => {
+		colors = JSON.parse(data).colors;
+	}).catch(err => {
+		console.log('There does not already exist a file with the colors for the districting of this state');
+		console.log(err);
+	})
 
 	var detail_opt = req.params.detailopt;
 	console.log(detail_opt);
@@ -278,7 +280,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 	fs.readFile('../district-web-data/web_data/district_polygons/polygons_'+req.params.name, 'utf8', function(err, data){
 
 		if (err){
-			console.log('There does not already exist a file with the polygons for this districting of this state');
+			console.log('There does not already exist a file with the polygons for the districting of this state');
 			console.log(err);
 
 			// pass in empty data so that server doesn't crash, will just show outline of state
