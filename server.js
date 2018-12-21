@@ -249,9 +249,6 @@ app.get('/states', async function(req, res){
 // This is to get all data for drawing the map. Takes in a :name parameter (the state code) and a :detailopt (whether or not we should 
 // send along the census block detail)
 app.get('/state/:name/:detailopt', function(req, res){
-	console.log("TODO: changes to the git repo have caused this method to be obsolete.")
-	return
-
 	var statejson = fs.readFileSync('../district-web-data/states.json'); // contains information about each state, including state boundary and census area. take a look in the file for more info
 
 	var state = JSON.parse(statejson).features.find(state => (state.properties.NAME == stateCodes[req.params.name]["name"]));
