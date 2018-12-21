@@ -1,6 +1,8 @@
 body, div {
 	padding: 0px;
 	margin: 0px;
+	overflow-y: hidden;
+	overflow-x: hidden;
 }
 
 #redistrictForm, #detailRedistrictForm {
@@ -46,7 +48,6 @@ input[type="search"] {
 }
 
 #search-control {
-	height: 100%;
 	width: 300px;
 	display: flex;
 	flex-direction: column;

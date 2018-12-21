@@ -59,10 +59,6 @@ var stateCodes = {
 			    		"name": "Delaware", 
 			    		"single_district": true
 			    	},
-			    "DC": {
-			    		"name": "District of Columbia", 
-			    		"single_district": true
-			    	},
 			    "FL": {
 			    		"name": "Florida", 
 			    		"single_district": false
@@ -254,8 +250,24 @@ app.get('/state/:name/:detailopt', function(req, res){
 	var state = JSON.parse(statejson).features.find(state => (state.properties.NAME == stateCodes[req.params.name]["name"]));
 
 	var	stateGeom = state.geometry; // get the geometry/coordinates corresponding to the state in question
-	var zoom = (11.5 - Math.log10(state.properties.CENSUSAREA)); // a cute little equation i experimentally came up with to calculate a reasonable zoom setting for open layers
+
+	if (req.params.name == 'AK') {
+		var zoom = (10 - Math.log10(state.properties.CENSUSAREA)); // a cute little equation i experimentally came up with to calculate a reasonable zoom setting for open layers
+	} else {
+		var zoom = (11.5 - Math.log10(state.properties.CENSUSAREA));
+	}
 	console.log(zoom);
+
+	// Read in colors for that state
+	var colors = [];
+	fs.readFile('../district-web-data/web_data/graph_coloring/colors_'+req.params.name, 'utf8', function(err, data){
+		if (err) {
+			console.log('There does not already exist a file with the colors for this districting of this state');
+			console.log(err);
+		} else {
+			colors = JSON.parse(data).colors;
+		}
+	});
 
 	var detail_opt = req.params.detailopt;
 	console.log(detail_opt);
@@ -269,7 +281,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 			console.log(err);
 
 			// pass in empty data so that server doesn't crash, will just show outline of state
-			var json = {"polygons":[], "geometry":stateGeom, "blocks":[], "zoom":zoom}
+			var json = {"polygons":[], "geometry":stateGeom, "blocks":[], "zoom":zoom, "colors":['#fafafa']}
 
 		}
 		else {
@@ -283,7 +295,7 @@ app.get('/state/:name/:detailopt', function(req, res){
 			}
 			// string processing because arrays in python are different than arrays in js.
 			var polygons = JSON.parse(data.replace(/\(/g, '\[').replace(/\)/g, '\]'));
-			var json = {"polygons":polygons, "geometry":stateGeom, "blocks": census_blocks, "zoom":zoom};
+			var json = {"polygons":polygons, "geometry":stateGeom, "blocks": census_blocks, "zoom":zoom, "colors":colors};
 		}
 
 		// send it back to the functions that did a get request to this route in index.js
