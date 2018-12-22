@@ -55,7 +55,7 @@ $(document).ready(function(){
 
 			$('#detail-option').on('change', toggleDetail);
 			$('#bound-option').on('change', toggleBorder);
-			$('#slider').on('input', changeOpacity);
+			$('#slider').on('change', changeOpacity);
 
 			function changeOpacity(event) {
 				// convert opacity to decimal value
@@ -64,7 +64,7 @@ $(document).ready(function(){
 				var detail_option = $('#detail-option').prop('checked');
 				var border_option = $('#bound-option').prop('checked');
 
-				$.get('/state/'+state+'/'+detail_option,  async function(res){
+				$.get('/state/'+state+'/'+detail_option, async function(res){
 					await drawDistricts(state, res, true, border_option);
 					hideLoadAnimation();
 				});
@@ -77,7 +77,7 @@ $(document).ready(function(){
 				var border_option = $('#bound-option').prop('checked');
 				var state = $('#state-input').val();
 
-				$.get('/state/'+state+'/'+detail_option,  function(res){
+				$.get('/state/'+state+'/'+detail_option, function(res){
 					drawDistricts(state, res, true, border_option); // redraws districts, which causes refresh
 					hideLoadAnimation();
 
